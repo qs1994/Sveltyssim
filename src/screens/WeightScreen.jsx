@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceL
 export default function WeightScreen({ user, goals, onBack }) {
   const [weights, setWeights] = useState([])
   const [newWeight, setNewWeight] = useState('')
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -16,22 +17,22 @@ export default function WeightScreen({ user, goals, onBack }) {
       .select('*')
       .eq('user_id', user.id)
       .order('date', { ascending: true })
-      .limit(30)
+      .limit(90)
     if (data) setWeights(data)
   }
 
   const handleSave = async () => {
-    if (!newWeight) return
+    if (!newWeight || !selectedDate) return
     setLoading(true)
-    const today = new Date().toISOString().split('T')[0]
     await supabase.from('weights').upsert({
       user_id: user.id,
-      date: today,
+      date: selectedDate,
       weight: parseFloat(newWeight),
     }, { onConflict: 'user_id,date' })
     setLoading(false)
     setSaved(true)
     setNewWeight('')
+    setSelectedDate(new Date().toISOString().split('T')[0])
     fetchWeights()
     setTimeout(() => setSaved(false), 2000)
   }
@@ -48,6 +49,8 @@ export default function WeightScreen({ user, goals, onBack }) {
   const minW = weights.length ? Math.min(...weights.map(w => w.weight)) - 2 : 50
   const maxW = weights.length ? Math.max(...weights.map(w => w.weight)) + 2 : 100
 
+  const isToday = selectedDate === new Date().toISOString().split('T')[0]
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -57,9 +60,33 @@ export default function WeightScreen({ user, goals, onBack }) {
       </div>
 
       <div style={styles.scroll}>
-        {/* Current weight input */}
+        {/* Input card */}
         <div style={styles.inputCard}>
-          <p style={styles.inputLabel}>⚖️ Mon poids aujourd'hui</p>
+          <p style={styles.inputLabel}>⚖️ Ajouter un poids</p>
+
+          {/* Date picker */}
+          <div style={styles.dateRow}>
+            <span style={styles.dateIcon}>📅</span>
+            <input
+              style={styles.dateInput}
+              type="date"
+              value={selectedDate}
+              max={new Date().toISOString().split('T')[0]}
+              onChange={e => setSelectedDate(e.target.value)}
+            />
+            {!isToday && (
+              <button style={styles.todayBtn} onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
+                Aujourd'hui
+              </button>
+            )}
+          </div>
+
+          {!isToday && (
+            <p style={styles.pastDateLabel}>
+              📆 Entrée pour le {new Date(selectedDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          )}
+
           <div style={styles.inputRow}>
             <input
               style={styles.weightInput}
@@ -93,7 +120,7 @@ export default function WeightScreen({ user, goals, onBack }) {
             {diff !== null && weights.length > 1 && (
               <div style={styles.statCard}>
                 <p style={styles.statLabel}>Évolution</p>
-                <p style={{ ...styles.statVal, color: diff > 0 ? '#E8715A' : '#4A7C59' }}>
+                <p style={{ ...styles.statVal, color: parseFloat(diff) > 0 ? '#E8715A' : '#4A7C59' }}>
                   {diff > 0 ? '+' : ''}{diff} kg
                 </p>
               </div>
@@ -104,7 +131,7 @@ export default function WeightScreen({ user, goals, onBack }) {
         {/* Chart */}
         {weights.length > 1 ? (
           <div style={styles.chartCard}>
-            <p style={styles.chartTitle}>Courbe sur {weights.length} jours</p>
+            <p style={styles.chartTitle}>Courbe sur {weights.length} entrées</p>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#8E8E93' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
@@ -128,18 +155,18 @@ export default function WeightScreen({ user, goals, onBack }) {
         ) : (
           <div style={styles.emptyChart}>
             <p style={styles.emptyIcon}>📈</p>
-            <p style={styles.emptyText}>Enregistre ton poids chaque jour pour voir ta courbe !</p>
+            <p style={styles.emptyText}>Ajoute au moins 2 entrées pour voir ta courbe !</p>
           </div>
         )}
 
-        {/* History list */}
+        {/* History */}
         {weights.length > 0 && (
           <div style={styles.histSection}>
             <p style={styles.histTitle}>Historique</p>
             {[...weights].reverse().map(w => (
               <div key={w.id} style={styles.histItem}>
                 <p style={styles.histDate}>
-                  {new Date(w.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {new Date(w.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
                 </p>
                 <p style={styles.histWeight}>{w.weight} kg</p>
               </div>
@@ -162,6 +189,22 @@ const styles = {
   scroll: { flex: 1, overflowY: 'auto', padding: '20px 20px 100px' },
   inputCard: { background: 'var(--white)', borderRadius: '20px', padding: '20px', marginBottom: '16px', boxShadow: 'var(--shadow)' },
   inputLabel: { fontSize: '16px', fontWeight: '700', marginBottom: '16px' },
+  dateRow: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' },
+  dateIcon: { fontSize: '20px' },
+  dateInput: {
+    flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+    border: '1.5px solid var(--border)', fontSize: '15px',
+    background: 'var(--cream)', color: 'var(--text)',
+  },
+  todayBtn: {
+    padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+    background: 'var(--green-pale)', color: 'var(--green)',
+    fontSize: '13px', fontWeight: '600',
+  },
+  pastDateLabel: {
+    fontSize: '13px', color: 'var(--coral)', fontWeight: '500',
+    marginBottom: '12px', textTransform: 'capitalize',
+  },
   inputRow: { display: 'flex', alignItems: 'center', gap: '10px' },
   weightInput: {
     flex: 1, padding: '14px 16px', borderRadius: 'var(--radius-sm)',
