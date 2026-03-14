@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
- 
+
 export default function WeightScreen({ user, goals, onBack }) {
   const [weights, setWeights] = useState([])
   const [newWeight, setNewWeight] = useState('')
@@ -10,9 +10,9 @@ export default function WeightScreen({ user, goals, onBack }) {
   const [saved, setSaved] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
- 
+
   useEffect(() => { fetchWeights() }, [])
- 
+
   const fetchWeights = async () => {
     const { data } = await supabase
       .from('weights')
@@ -22,7 +22,7 @@ export default function WeightScreen({ user, goals, onBack }) {
       .limit(90)
     if (data) setWeights(data)
   }
- 
+
   const handleSave = async () => {
     if (!newWeight || !selectedDate) return
     setLoading(true)
@@ -38,12 +38,12 @@ export default function WeightScreen({ user, goals, onBack }) {
     fetchWeights()
     setTimeout(() => setSaved(false), 2000)
   }
- 
+
   const handleEdit = (w) => {
     setEditingId(w.id)
     setEditValue(String(w.weight))
   }
- 
+
   const handleEditSave = async (id) => {
     if (!editValue) return
     await supabase.from('weights').update({ weight: parseFloat(editValue) }).eq('id', id)
@@ -51,26 +51,26 @@ export default function WeightScreen({ user, goals, onBack }) {
     setEditValue('')
     fetchWeights()
   }
- 
+
   const handleDelete = async (id) => {
     await supabase.from('weights').delete().eq('id', id)
     setEditingId(null)
     fetchWeights()
   }
- 
+
   const last = weights[weights.length - 1]
   const first = weights[0]
   const diff = last && first ? (last.weight - first.weight).toFixed(1) : null
- 
+
   const chartData = weights.map(w => ({
     date: new Date(w.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
     poids: w.weight,
   }))
- 
+
   const minW = weights.length ? Math.min(...weights.map(w => w.weight)) - 2 : 50
   const maxW = weights.length ? Math.max(...weights.map(w => w.weight)) + 2 : 100
   const isToday = selectedDate === new Date().toISOString().split('T')[0]
- 
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -78,7 +78,7 @@ export default function WeightScreen({ user, goals, onBack }) {
         <h2 style={styles.title}>Suivi du poids</h2>
         <div style={{ width: 36 }} />
       </div>
- 
+
       <div style={styles.scroll}>
         {/* Input card */}
         <div style={styles.inputCard}>
@@ -119,7 +119,7 @@ export default function WeightScreen({ user, goals, onBack }) {
             </button>
           </div>
         </div>
- 
+
         {/* Stats */}
         {last && (
           <div style={styles.statsRow}>
@@ -143,7 +143,7 @@ export default function WeightScreen({ user, goals, onBack }) {
             )}
           </div>
         )}
- 
+
         {/* Chart */}
         {weights.length > 1 ? (
           <div style={styles.chartCard}>
@@ -174,7 +174,7 @@ export default function WeightScreen({ user, goals, onBack }) {
             <p style={styles.emptyText}>Ajoute au moins 2 entrées pour voir ta courbe !</p>
           </div>
         )}
- 
+
         {/* History */}
         {weights.length > 0 && (
           <div style={styles.histSection}>
@@ -223,7 +223,7 @@ export default function WeightScreen({ user, goals, onBack }) {
     </div>
   )
 }
- 
+
 const styles = {
   container: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--cream)' },
   header: {
@@ -251,15 +251,15 @@ const styles = {
     fontSize: '13px', color: 'var(--coral)', fontWeight: '500',
     marginBottom: '12px', textTransform: 'capitalize',
   },
-  inputRow: { display: 'flex', alignItems: 'center', gap: '10px' },
+  inputRow: { display: 'flex', alignItems: 'center', gap: '8px' },
   weightInput: {
-    flex: 1, padding: '14px 16px', borderRadius: 'var(--radius-sm)',
+    flex: 1, minWidth: 0, padding: '14px 10px', borderRadius: 'var(--radius-sm)',
     border: '2px solid var(--green-pale)', fontSize: '22px', fontWeight: '700',
     textAlign: 'center', background: 'var(--cream)',
   },
-  kg: { fontSize: '18px', fontWeight: '600', color: 'var(--text-muted)' },
+  kg: { fontSize: '16px', fontWeight: '600', color: 'var(--text-muted)', flexShrink: 0 },
   saveBtn: {
-    padding: '14px 20px', borderRadius: 'var(--radius-sm)',
+    flexShrink: 0, padding: '14px 16px', borderRadius: 'var(--radius-sm)',
     background: 'var(--green)', color: 'white', fontWeight: '700', fontSize: '15px',
   },
   statsRow: { display: 'flex', gap: '12px', marginBottom: '16px' },
@@ -302,4 +302,3 @@ const styles = {
   deleteBtn: { background: '#FFF0EE', borderRadius: '8px', padding: '6px 10px', fontSize: '16px' },
   cancelBtn: { background: 'var(--cream-dark)', borderRadius: '8px', padding: '6px 10px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: '700' },
 }
- 
