@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
-
+ 
 export default function WeightScreen({ user, goals, onBack }) {
   const [weights, setWeights] = useState([])
   const [newWeight, setNewWeight] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
-
+  const [editingId, setEditingId] = useState(null)
+  const [editValue, setEditValue] = useState('')
+ 
   useEffect(() => { fetchWeights() }, [])
-
+ 
   const fetchWeights = async () => {
     const { data } = await supabase
       .from('weights')
@@ -20,7 +22,7 @@ export default function WeightScreen({ user, goals, onBack }) {
       .limit(90)
     if (data) setWeights(data)
   }
-
+ 
   const handleSave = async () => {
     if (!newWeight || !selectedDate) return
     setLoading(true)
@@ -36,21 +38,39 @@ export default function WeightScreen({ user, goals, onBack }) {
     fetchWeights()
     setTimeout(() => setSaved(false), 2000)
   }
-
+ 
+  const handleEdit = (w) => {
+    setEditingId(w.id)
+    setEditValue(String(w.weight))
+  }
+ 
+  const handleEditSave = async (id) => {
+    if (!editValue) return
+    await supabase.from('weights').update({ weight: parseFloat(editValue) }).eq('id', id)
+    setEditingId(null)
+    setEditValue('')
+    fetchWeights()
+  }
+ 
+  const handleDelete = async (id) => {
+    await supabase.from('weights').delete().eq('id', id)
+    setEditingId(null)
+    fetchWeights()
+  }
+ 
   const last = weights[weights.length - 1]
   const first = weights[0]
   const diff = last && first ? (last.weight - first.weight).toFixed(1) : null
-
+ 
   const chartData = weights.map(w => ({
     date: new Date(w.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
     poids: w.weight,
   }))
-
+ 
   const minW = weights.length ? Math.min(...weights.map(w => w.weight)) - 2 : 50
   const maxW = weights.length ? Math.max(...weights.map(w => w.weight)) + 2 : 100
-
   const isToday = selectedDate === new Date().toISOString().split('T')[0]
-
+ 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -58,13 +78,11 @@ export default function WeightScreen({ user, goals, onBack }) {
         <h2 style={styles.title}>Suivi du poids</h2>
         <div style={{ width: 36 }} />
       </div>
-
+ 
       <div style={styles.scroll}>
         {/* Input card */}
         <div style={styles.inputCard}>
           <p style={styles.inputLabel}>⚖️ Ajouter un poids</p>
-
-          {/* Date picker */}
           <div style={styles.dateRow}>
             <span style={styles.dateIcon}>📅</span>
             <input
@@ -80,13 +98,11 @@ export default function WeightScreen({ user, goals, onBack }) {
               </button>
             )}
           </div>
-
           {!isToday && (
             <p style={styles.pastDateLabel}>
               📆 Entrée pour le {new Date(selectedDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           )}
-
           <div style={styles.inputRow}>
             <input
               style={styles.weightInput}
@@ -103,7 +119,7 @@ export default function WeightScreen({ user, goals, onBack }) {
             </button>
           </div>
         </div>
-
+ 
         {/* Stats */}
         {last && (
           <div style={styles.statsRow}>
@@ -127,7 +143,7 @@ export default function WeightScreen({ user, goals, onBack }) {
             )}
           </div>
         )}
-
+ 
         {/* Chart */}
         {weights.length > 1 ? (
           <div style={styles.chartCard}>
@@ -158,17 +174,47 @@ export default function WeightScreen({ user, goals, onBack }) {
             <p style={styles.emptyText}>Ajoute au moins 2 entrées pour voir ta courbe !</p>
           </div>
         )}
-
+ 
         {/* History */}
         {weights.length > 0 && (
           <div style={styles.histSection}>
-            <p style={styles.histTitle}>Historique</p>
+            <p style={styles.histTitle}>Historique <span style={styles.histHint}>· appuie sur ✏️ pour modifier</span></p>
             {[...weights].reverse().map(w => (
-              <div key={w.id} style={styles.histItem}>
-                <p style={styles.histDate}>
-                  {new Date(w.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </p>
-                <p style={styles.histWeight}>{w.weight} kg</p>
+              <div key={w.id}>
+                {editingId === w.id ? (
+                  /* Mode édition */
+                  <div style={styles.editRow}>
+                    <p style={styles.editDate}>
+                      {new Date(w.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </p>
+                    <div style={styles.editInputRow}>
+                      <input
+                        style={styles.editInput}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.1"
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        autoFocus
+                      />
+                      <span style={styles.editKg}>kg</span>
+                    </div>
+                    <div style={styles.editActions}>
+                      <button style={styles.confirmBtn} onClick={() => handleEditSave(w.id)}>✅</button>
+                      <button style={styles.deleteBtn} onClick={() => handleDelete(w.id)}>🗑️</button>
+                      <button style={styles.cancelBtn} onClick={() => setEditingId(null)}>✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Mode normal */
+                  <div style={styles.histItem}>
+                    <p style={styles.histDate}>
+                      {new Date(w.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </p>
+                    <p style={styles.histWeight}>{w.weight} kg</p>
+                    <button style={styles.editBtn} onClick={() => handleEdit(w)}>✏️</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -177,7 +223,7 @@ export default function WeightScreen({ user, goals, onBack }) {
     </div>
   )
 }
-
+ 
 const styles = {
   container: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--cream)' },
   header: {
@@ -230,10 +276,30 @@ const styles = {
   emptyText: { fontSize: '14px', color: 'var(--text-muted)', maxWidth: '200px', margin: '0 auto' },
   histSection: { background: 'var(--white)', borderRadius: '20px', padding: '20px' },
   histTitle: { fontSize: '16px', fontWeight: '700', marginBottom: '12px' },
+  histHint: { fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' },
   histItem: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     padding: '12px 0', borderBottom: '1px solid var(--border)',
   },
-  histDate: { fontSize: '14px', color: 'var(--text-muted)', textTransform: 'capitalize' },
-  histWeight: { fontSize: '16px', fontWeight: '700' },
+  histDate: { fontSize: '14px', color: 'var(--text-muted)', textTransform: 'capitalize', flex: 1 },
+  histWeight: { fontSize: '16px', fontWeight: '700', marginRight: '12px' },
+  editBtn: { background: 'none', fontSize: '18px', padding: '4px' },
+  editRow: {
+    display: 'flex', alignItems: 'center', gap: '10px',
+    padding: '10px 0', borderBottom: '1px solid var(--border)',
+    flexWrap: 'wrap',
+  },
+  editDate: { fontSize: '13px', color: 'var(--text-muted)', textTransform: 'capitalize', flex: 1, minWidth: '100px' },
+  editInputRow: { display: 'flex', alignItems: 'baseline', gap: '4px' },
+  editInput: {
+    width: '80px', padding: '8px 10px', borderRadius: '10px',
+    border: '2px solid var(--green)', fontSize: '18px', fontWeight: '700',
+    textAlign: 'center', background: 'var(--cream)',
+  },
+  editKg: { fontSize: '13px', color: 'var(--text-muted)' },
+  editActions: { display: 'flex', gap: '6px' },
+  confirmBtn: { background: 'var(--green-pale)', borderRadius: '8px', padding: '6px 10px', fontSize: '16px' },
+  deleteBtn: { background: '#FFF0EE', borderRadius: '8px', padding: '6px 10px', fontSize: '16px' },
+  cancelBtn: { background: 'var(--cream-dark)', borderRadius: '8px', padding: '6px 10px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: '700' },
 }
+ 
