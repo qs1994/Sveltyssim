@@ -130,6 +130,13 @@ export default function Dashboard({ user, goals, onNavigate }) {
         </div>
 
         {/* Today's meals */}
+        {/* Food database shortcut */}
+        <button style={styles.dbShortcut} onClick={() => onNavigate('foodDatabase')}>
+          <span>📚</span>
+          <span style={styles.dbShortcutText}>Ma base alimentaire</span>
+          <span style={styles.dbShortcutArrow}>→</span>
+        </button>
+
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
             <p style={styles.sectionTitle}>Repas du jour</p>
@@ -232,4 +239,12 @@ const styles = {
   mealName: { fontSize: '15px', fontWeight: '600', color: 'var(--text)' },
   mealMeta: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' },
   mealCal: { fontSize: '15px', fontWeight: '700', color: 'var(--coral)' },
+  dbShortcut: {
+    width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
+    background: 'var(--white)', borderRadius: '16px', padding: '14px 18px',
+    marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    border: '1.5px solid var(--green-pale)',
+  },
+  dbShortcutText: { flex: 1, fontSize: '15px', fontWeight: '600', color: 'var(--text)', textAlign: 'left' },
+  dbShortcutArrow: { fontSize: '16px', color: 'var(--green)' },
 }
