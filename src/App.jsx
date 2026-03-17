@@ -72,3 +72,7 @@ export default function App() {
       {screen === 'foodDatabase' && (
         <FoodDatabase onClose={() => setScreen('dashboard')} />
       )}
+      {showNav && <BottomNav active={screen} onNavigate={setScreen} />}
+    </div>
+  )
+}
