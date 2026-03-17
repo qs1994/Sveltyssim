@@ -67,8 +67,9 @@ export default function WeightScreen({ user, goals, onBack }) {
     poids: w.weight,
   }))
 
-  const minW = weights.length ? Math.min(...weights.map(w => w.weight)) - 2 : 50
-  const maxW = weights.length ? Math.max(...weights.map(w => w.weight)) + 2 : 100
+  const allValues = [...weights.map(w => w.weight), ...(goals.target_weight ? [Number(goals.target_weight)] : [])]
+  const minW = allValues.length ? Math.min(...allValues) - 2 : 50
+  const maxW = allValues.length ? Math.max(...allValues) + 2 : 100
   const isToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
@@ -138,6 +139,16 @@ export default function WeightScreen({ user, goals, onBack }) {
                 <p style={styles.statLabel}>Évolution</p>
                 <p style={{ ...styles.statVal, color: parseFloat(diff) > 0 ? '#E8715A' : '#4A7C59' }}>
                   {diff > 0 ? '+' : ''}{diff} kg
+                </p>
+              </div>
+            )}
+            {goals.target_weight && last && (
+              <div style={styles.statCard}>
+                <p style={styles.statLabel}>Reste</p>
+                <p style={{ ...styles.statVal, color: last.weight > goals.target_weight ? '#E8715A' : '#4A7C59' }}>
+                  {last.weight > goals.target_weight
+                    ? `-${(last.weight - goals.target_weight).toFixed(1)} kg`
+                    : '🎯 Atteint !'}
                 </p>
               </div>
             )}
@@ -228,7 +239,7 @@ const styles = {
   container: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--cream)' },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '16px 20px', borderBottom: '1px solid var(--border)', background: 'var(--white)',
+    padding: '52px 20px 16px', borderBottom: '1px solid var(--border)', background: 'var(--white)',
   },
   back: { background: 'none', fontSize: '22px', color: 'var(--green)', width: 36 },
   title: { fontSize: '18px', fontWeight: '700' },
