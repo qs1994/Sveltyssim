@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { buildWeightMessage } from '../lib/weightMessages'
+
+const moodColor = (mood) => {
+  if (mood === 'good') return '#4A7C59'
+  if (mood === 'warning') return '#E8715A'
+  return '#5B8DEF'
+}
+
+const moodEmoji = (mood) => {
+  if (mood === 'good') return '🎉'
+  if (mood === 'warning') return '💪'
+  return '🌱'
+}
 
 export default function WeightScreen({ user, goals, onBack }) {
   const [weights, setWeights] = useState([])
@@ -10,6 +23,7 @@ export default function WeightScreen({ user, goals, onBack }) {
   const [saved, setSaved] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [message, setMessage] = useState(null)
 
   useEffect(() => { fetchWeights() }, [])
 
@@ -25,11 +39,19 @@ export default function WeightScreen({ user, goals, onBack }) {
 
   const handleSave = async () => {
     if (!newWeight || !selectedDate) return
+    const newW = parseFloat(newWeight)
+    // Poids précédent = la dernière entrée strictement antérieure à selectedDate
+    // (weights est trié par date ascendante)
+    const prevEntries = weights.filter(w => w.date < selectedDate)
+    const previousWeight = prevEntries.length > 0
+      ? Number(prevEntries[prevEntries.length - 1].weight)
+      : null
+
     setLoading(true)
     await supabase.from('weights').upsert({
       user_id: user.id,
       date: selectedDate,
-      weight: parseFloat(newWeight),
+      weight: newW,
     }, { onConflict: 'user_id,date' })
     setLoading(false)
     setSaved(true)
@@ -37,6 +59,15 @@ export default function WeightScreen({ user, goals, onBack }) {
     setSelectedDate(new Date().toISOString().split('T')[0])
     fetchWeights()
     setTimeout(() => setSaved(false), 2000)
+
+    // Construire et afficher le message d'encouragement
+    const msg = buildWeightMessage({
+      user,
+      previousWeight,
+      newWeight: newW,
+      targetWeight: goals?.target_weight ?? null,
+    })
+    setMessage(msg)
   }
 
   const handleEdit = (w) => {
@@ -186,6 +217,31 @@ export default function WeightScreen({ user, goals, onBack }) {
           </div>
         )}
 
+        {/* Modal d'encouragement */}
+        {message && (
+          <div style={styles.modalOverlay} onClick={() => setMessage(null)}>
+            <div
+              style={{
+                ...styles.modalCard,
+                borderTop: `6px solid ${moodColor(message.mood)}`,
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={styles.modalEmoji}>{moodEmoji(message.mood)}</div>
+              <p style={{ ...styles.modalTitle, color: moodColor(message.mood) }}>
+                {message.title}
+              </p>
+              <p style={styles.modalBody}>{message.body}</p>
+              <button
+                style={{ ...styles.modalCloseBtn, background: moodColor(message.mood) }}
+                onClick={() => setMessage(null)}
+              >
+                {message.closeLabel}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* History */}
         {weights.length > 0 && (
           <div style={styles.histSection}>
@@ -312,4 +368,50 @@ const styles = {
   confirmBtn: { background: 'var(--green-pale)', borderRadius: '8px', padding: '6px 10px', fontSize: '16px' },
   deleteBtn: { background: '#FFF0EE', borderRadius: '8px', padding: '6px 10px', fontSize: '16px' },
   cancelBtn: { background: 'var(--cream-dark)', borderRadius: '8px', padding: '6px 10px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: '700' },
+  modalOverlay: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(20, 25, 35, 0.55)',
+    backdropFilter: 'blur(4px)',
+    WebkitBackdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '24px', zIndex: 1000,
+    animation: 'fadeIn 0.18s ease-out',
+  },
+  modalCard: {
+    background: 'var(--white)',
+    borderRadius: '24px',
+    padding: '28px 24px 22px',
+    maxWidth: '360px', width: '100%',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.25)',
+    textAlign: 'center',
+    animation: 'popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  },
+  modalEmoji: {
+    fontSize: '52px',
+    marginBottom: '8px',
+    lineHeight: 1,
+  },
+  modalTitle: {
+    fontSize: '22px',
+    fontWeight: '700',
+    fontFamily: 'var(--font-display)',
+    marginBottom: '14px',
+    letterSpacing: '0.3px',
+  },
+  modalBody: {
+    fontSize: '15px',
+    lineHeight: 1.55,
+    color: 'var(--text)',
+    whiteSpace: 'pre-line',
+    marginBottom: '22px',
+  },
+  modalCloseBtn: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: 'var(--radius-sm)',
+    color: 'white',
+    fontSize: '15px',
+    fontWeight: '700',
+    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.18)',
+  },
 }
