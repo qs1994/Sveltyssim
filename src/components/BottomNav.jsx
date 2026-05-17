@@ -3,8 +3,9 @@ import { t } from '../lib/i18n'
 const baseTabs = [
   { id: 'dashboard', icon: '🏠', labelKey: 'nav_home' },
   { id: 'weight', icon: '⚖️', labelKey: 'nav_weight' },
-  { id: 'addMeal', icon: '➕', labelKey: '', cta: true },
   { id: 'measurements', icon: '📏', labelKey: 'nav_meas' },
+  { id: 'addMeal', icon: '➕', labelKey: '', cta: true },
+  { id: 'workout', icon: '🏋️', labelKey: 'nav_workout' },
   { id: 'profile', icon: '👤', labelKey: 'nav_profile' },
 ]
 
@@ -46,8 +47,8 @@ const styles = {
     boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
   },
   tab: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-    background: 'none', padding: '8px 12px', borderRadius: '12px', minWidth: '56px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+    background: 'none', padding: '6px 6px', borderRadius: '12px', minWidth: '48px',
   },
   tabActive: { background: 'var(--green-pale)' },
   ctaTab: {

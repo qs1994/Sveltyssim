@@ -102,3 +102,44 @@ CREATE POLICY "Users can manage their own measurements"
   ON measurements FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ============================================
+-- MUSCU (ajout)
+-- ============================================
+
+-- Catalogue d'exercices propre à chaque utilisateur
+CREATE TABLE exercises (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  muscle_group TEXT NOT NULL CHECK (muscle_group IN ('biceps','triceps','jambes','pecs','dos','epaules')),
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Logs de séance : 1 ligne par exercice fait à une date donnée
+CREATE TABLE workout_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  exercise_id UUID REFERENCES exercises(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  weight DECIMAL(6,2) NOT NULL,
+  reps INTEGER NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX workout_logs_exercise_date_idx ON workout_logs (exercise_id, date DESC);
+
+ALTER TABLE exercises ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own exercises"
+  ON exercises FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own workout logs"
+  ON workout_logs FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
