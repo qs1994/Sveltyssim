@@ -8,6 +8,7 @@ import Profile from './screens/Profile'
 import BottomNav from './components/BottomNav'
 import FastingScreen from './screens/FastingScreen'
 import FoodDatabase from './screens/FoodDatabase'
+import Measurements from './screens/Measurements'
 
 const DEFAULT_GOALS = { calories: 2000, carbs: 250, proteins: 150, target_weight: null }
 
@@ -46,7 +47,7 @@ export default function App() {
 
   if (!session) return <Auth />
 
-  const showNav = ['dashboard', 'weight', 'profile', 'fasting', 'foodDatabase'].includes(screen)
+  const showNav = ['dashboard', 'weight', 'profile', 'measurements'].includes(screen)
 
   return (
     <div style={{ height: '100%', position: 'relative' }}>
@@ -72,7 +73,10 @@ export default function App() {
       {screen === 'foodDatabase' && (
         <FoodDatabase onClose={() => setScreen('dashboard')} />
       )}
-      {showNav && <BottomNav active={screen} onNavigate={setScreen} />}
+      {screen === 'measurements' && (
+        <Measurements user={session.user} onBack={() => setScreen('dashboard')} />
+      )}
+      {showNav && <BottomNav active={screen} onNavigate={setScreen} user={session.user} />}
     </div>
   )
 }

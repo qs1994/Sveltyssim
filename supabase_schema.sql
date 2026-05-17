@@ -64,3 +64,41 @@ CREATE POLICY "Users can manage their own goals"
   ON goals FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ============================================
+-- MENSURATIONS (ajout)
+-- ============================================
+
+-- Liste personnalisée des zones de mesure pour chaque utilisateur
+CREATE TABLE measurement_zones (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  zone_type TEXT NOT NULL CHECK (zone_type IN ('tronc', 'membres')),
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Valeurs de mesure par zone et par date
+CREATE TABLE measurements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  zone_id UUID REFERENCES measurement_zones(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  value_cm DECIMAL(5,1) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(zone_id, date)
+);
+
+ALTER TABLE measurement_zones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE measurements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own measurement zones"
+  ON measurement_zones FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own measurements"
+  ON measurements FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);

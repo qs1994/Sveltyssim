@@ -1,28 +1,34 @@
-const tabs = [
-  { id: 'dashboard', icon: '🏠', label: 'Accueil' },
-  { id: 'weight', icon: '⚖️', label: 'Poids' },
-  { id: 'addMeal', icon: '➕', label: '', cta: true },
-  { id: 'fasting', icon: '⏱️', label: 'Jeûne' },
-  { id: 'profile', icon: '👤', label: 'Profil' },
+import { t } from '../lib/i18n'
+
+const baseTabs = [
+  { id: 'dashboard', icon: '🏠', labelKey: 'nav_home' },
+  { id: 'weight', icon: '⚖️', labelKey: 'nav_weight' },
+  { id: 'addMeal', icon: '➕', labelKey: '', cta: true },
+  { id: 'measurements', icon: '📏', labelKey: 'nav_meas' },
+  { id: 'profile', icon: '👤', labelKey: 'nav_profile' },
 ]
 
-export default function BottomNav({ active, onNavigate }) {
+export default function BottomNav({ active, onNavigate, user }) {
+  const tabs = baseTabs.map(tab => ({
+    ...tab,
+    label: tab.cta ? '' : t(user, tab.labelKey),
+  }))
   return (
     <div style={styles.nav}>
-      {tabs.map(t => (
+      {tabs.map(tab => (
         <button
-          key={t.id}
+          key={tab.id}
           style={{
             ...styles.tab,
-            ...(t.cta ? styles.ctaTab : {}),
-            ...(active === t.id && !t.cta ? styles.tabActive : {}),
+            ...(tab.cta ? styles.ctaTab : {}),
+            ...(active === tab.id && !tab.cta ? styles.tabActive : {}),
           }}
-          onClick={() => onNavigate(t.id)}
+          onClick={() => onNavigate(tab.id)}
         >
-          <span style={{ fontSize: t.cta ? '24px' : '20px' }}>{t.icon}</span>
-          {!t.cta && (
-            <span style={{ ...styles.label, ...(active === t.id ? styles.labelActive : {}) }}>
-              {t.label}
+          <span style={{ fontSize: tab.cta ? '24px' : '20px' }}>{tab.icon}</span>
+          {!tab.cta && (
+            <span style={{ ...styles.label, ...(active === tab.id ? styles.labelActive : {}) }}>
+              {tab.label}
             </span>
           )}
         </button>

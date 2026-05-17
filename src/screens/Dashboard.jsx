@@ -129,13 +129,17 @@ export default function Dashboard({ user, goals, onNavigate }) {
           </button>
         </div>
 
-        {/* Today's meals */}
-        {/* Food database shortcut */}
-        <button style={styles.dbShortcut} onClick={() => onNavigate('foodDatabase')}>
-          <span>📚</span>
-          <span style={styles.dbShortcutText}>Ma base alimentaire</span>
-          <span style={styles.dbShortcutArrow}>→</span>
-        </button>
+        {/* Raccourcis : Jeûne + Base alimentaire */}
+        <div style={styles.shortcutRow}>
+          <button style={styles.shortcutBtn} onClick={() => onNavigate('fasting')}>
+            <span style={styles.shortcutIcon}>⏱️</span>
+            <span style={styles.shortcutText}>Jeûne</span>
+          </button>
+          <button style={styles.shortcutBtn} onClick={() => onNavigate('foodDatabase')}>
+            <span style={styles.shortcutIcon}>📚</span>
+            <span style={styles.shortcutText}>Aliments</span>
+          </button>
+        </div>
 
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
@@ -239,12 +243,16 @@ const styles = {
   mealName: { fontSize: '15px', fontWeight: '600', color: 'var(--text)' },
   mealMeta: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' },
   mealCal: { fontSize: '15px', fontWeight: '700', color: 'var(--coral)' },
-  dbShortcut: {
-    width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
-    background: 'var(--white)', borderRadius: '16px', padding: '14px 18px',
-    marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  shortcutRow: {
+    display: 'flex', gap: '10px',
+    marginBottom: '20px',
+  },
+  shortcutBtn: {
+    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+    background: 'var(--white)', borderRadius: '16px', padding: '14px 12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
     border: '1.5px solid var(--green-pale)',
   },
-  dbShortcutText: { flex: 1, fontSize: '15px', fontWeight: '600', color: 'var(--text)', textAlign: 'left' },
-  dbShortcutArrow: { fontSize: '16px', color: 'var(--green)' },
+  shortcutIcon: { fontSize: '22px' },
+  shortcutText: { fontSize: '13px', fontWeight: '600', color: 'var(--text)' },
 }
