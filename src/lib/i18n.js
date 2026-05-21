@@ -88,6 +88,8 @@ const dict = {
     workout_no_logs: "Aucune perf enregistrée pour cet exercice.",
     workout_notes_placeholder: 'Notes (facultatif)',
     workout_delete_log: 'Supprimer cette perf ?',
+    workout_global_indice: 'Indice muscu',
+    workout_global_hint: 'Progression moyenne de tes charges max vs. ta toute première perf.',
 
     // Groupes musculaires
     mg_biceps: 'Biceps',
@@ -223,6 +225,8 @@ const dict = {
     workout_no_logs: 'Brak zapisanych wyników dla tego ćwiczenia.',
     workout_notes_placeholder: 'Notatki (opcjonalnie)',
     workout_delete_log: 'Usunąć ten wynik?',
+    workout_global_indice: 'Wskaźnik siłki',
+    workout_global_hint: 'Średni postęp Twoich maksymalnych ciężarów vs. pierwszy wynik.',
 
     mg_biceps: 'Biceps',
     mg_triceps: 'Triceps',

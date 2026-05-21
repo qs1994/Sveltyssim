@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { t, locale } from '../lib/i18n'
 import WorkoutCatalog from './WorkoutCatalog'
 
@@ -98,6 +98,50 @@ export default function Workout({ user, onBack }) {
     const best = exoLogs.reduce((max, l) => (Number(l.weight) > Number(max.weight) ? l : max), exoLogs[0])
     return { last, best }
   }
+
+  // === Indice musculation global ===
+  // Pour chaque date où il y a au moins un log :
+  //   - pour chaque exo, on prend son MAX-cumulé jusqu'à cette date (forward-fill)
+  //   - variation % vs la 1ère valeur connue de cet exo
+  //   - on moyenne sur tous les exos qui ont déjà été commencés
+  const buildGlobalChart = () => {
+    if (logs.length === 0) return []
+    const exoDateMax = {}
+    logs.forEach(l => {
+      if (!exoDateMax[l.exercise_id]) exoDateMax[l.exercise_id] = {}
+      const w = Number(l.weight)
+      const cur = exoDateMax[l.exercise_id][l.date]
+      if (cur == null || w > cur) exoDateMax[l.exercise_id][l.date] = w
+    })
+    const exoFirstWeight = {}
+    Object.entries(exoDateMax).forEach(([exoId, dateMap]) => {
+      const earliest = Object.keys(dateMap).sort()[0]
+      exoFirstWeight[exoId] = dateMap[earliest]
+    })
+    const allDates = [...new Set(logs.map(l => l.date))].sort()
+    return allDates.map(date => {
+      const variations = []
+      Object.entries(exoDateMax).forEach(([exoId, dateMap]) => {
+        const firstDate = Object.keys(dateMap).sort()[0]
+        if (firstDate > date) return
+        let maxUpToHere = -Infinity
+        Object.entries(dateMap).forEach(([d, w]) => { if (d <= date && w > maxUpToHere) maxUpToHere = w })
+        const first = exoFirstWeight[exoId]
+        if (first > 0 && maxUpToHere > -Infinity) {
+          variations.push(((maxUpToHere - first) / first) * 100)
+        }
+      })
+      return {
+        date,
+        label: new Date(date + 'T12:00:00').toLocaleDateString(locale(user), { day: '2-digit', month: 'short' }),
+        indice: variations.length ? variations.reduce((s, v) => s + v, 0) / variations.length : 0,
+      }
+    })
+  }
+  const globalChart = buildGlobalChart()
+  const latestIndice = globalChart.length ? globalChart[globalChart.length - 1].indice : null
+  const indiceMin = globalChart.length ? Math.min(0, ...globalChart.map(d => d.indice)) - 1 : -5
+  const indiceMax = globalChart.length ? Math.max(0, ...globalChart.map(d => d.indice)) + 1 : 5
 
   // Si un exo est sélectionné : afficher la saisie + son historique + son graph
   if (selectedExo) {
@@ -285,6 +329,42 @@ export default function Workout({ user, onBack }) {
       </div>
 
       <div style={styles.scroll}>
+        {/* Indice global musculation */}
+        {latestIndice != null && (
+          <div style={styles.globalCard}>
+            <div style={styles.globalHeaderRow}>
+              <div>
+                <p style={styles.globalLabel}>{t(user, 'workout_global_indice')}</p>
+                <p style={{
+                  ...styles.globalValue,
+                  color: latestIndice > 0 ? '#4A7C59' : latestIndice < 0 ? '#E8715A' : '#8E8E93',
+                }}>
+                  {latestIndice > 0 ? '+' : ''}{latestIndice.toFixed(1)}%
+                </p>
+              </div>
+              <div style={styles.globalIconWrap}>
+                <span style={styles.globalIcon}>🏋️</span>
+              </div>
+            </div>
+            {globalChart.length > 1 && (
+              <ResponsiveContainer width="100%" height={140}>
+                <LineChart data={globalChart} margin={{ top: 6, right: 10, left: -10, bottom: 0 }}>
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#8E8E93' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis domain={[indiceMin, indiceMax]} tick={{ fontSize: 10, fill: '#8E8E93' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                  <ReferenceLine y={0} stroke="#C0BBB3" strokeDasharray="3 3" />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--white)', border: 'none', borderRadius: '12px', boxShadow: 'var(--shadow)', fontSize: '13px' }}
+                    formatter={(val) => [`${val > 0 ? '+' : ''}${val.toFixed(1)}%`, t(user, 'workout_global_indice')]}
+                  />
+                  <Line type="monotone" dataKey="indice" stroke="#4A7C59" strokeWidth={3}
+                    dot={{ fill: '#4A7C59', r: 3 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+            <p style={styles.globalHint}>{t(user, 'workout_global_hint')}</p>
+          </div>
+        )}
+
         {groupExos.length === 0 ? (
           <div style={styles.emptyState}>
             <p style={styles.emptyIcon}>🏋️</p>
@@ -351,6 +431,22 @@ const styles = {
 
   scroll: { flex: 1, overflowY: 'auto', padding: '16px 20px 100px' },
 
+  // Indice global muscu
+  globalCard: {
+    background: 'var(--white)', borderRadius: '20px', padding: '16px',
+    marginBottom: '14px', boxShadow: 'var(--shadow)',
+  },
+  globalHeaderRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' },
+  globalLabel: { fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  globalValue: { fontSize: '30px', fontWeight: '700', fontFamily: 'var(--font-display)', marginTop: '2px' },
+  globalIconWrap: {
+    background: 'var(--green-pale)', borderRadius: '50%',
+    width: '44px', height: '44px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  globalIcon: { fontSize: '22px' },
+  globalHint: { fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center', fontStyle: 'italic' },
+
   emptyState: { textAlign: 'center', padding: '40px 20px', background: 'var(--white)', borderRadius: '20px', boxShadow: 'var(--shadow)' },
   emptyIcon: { fontSize: '44px', marginBottom: '10px' },
   emptyText: { fontSize: '14px', color: 'var(--text-muted)', marginBottom: '16px' },
@@ -397,20 +493,22 @@ const styles = {
     background: 'var(--green-pale)', color: 'var(--green)', fontSize: '13px', fontWeight: '600',
   },
 
-  perfRow: { display: 'flex', gap: '12px', marginBottom: '12px' },
-  perfBox: { flex: 1 },
-  perfLabel: { fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' },
+  perfRow: { display: 'flex', gap: '8px', marginBottom: '12px' },
+  perfBox: { flex: 1, minWidth: 0 },
+  perfLabel: { fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' },
   perfInputWrap: {
-    display: 'flex', alignItems: 'center', gap: '6px',
+    display: 'flex', alignItems: 'center', gap: '4px',
     background: 'var(--cream)', borderRadius: 'var(--radius-sm)',
-    border: '2px solid var(--green-pale)', padding: '6px 12px',
+    border: '2px solid var(--green-pale)', padding: '4px 8px',
+    minWidth: 0,
   },
   perfInput: {
-    flex: 1, minWidth: 0, background: 'transparent',
-    border: 'none', fontSize: '24px', fontWeight: '700',
-    textAlign: 'center',
+    flex: 1, minWidth: 0, width: '100%', background: 'transparent',
+    border: 'none', fontSize: '20px', fontWeight: '700',
+    textAlign: 'center', padding: '4px 0',
+    WebkitAppearance: 'none', MozAppearance: 'textfield',
   },
-  perfUnit: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: '700' },
+  perfUnit: { fontSize: '13px', color: 'var(--text-muted)', fontWeight: '700', flexShrink: 0 },
 
   notesInput: {
     width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)',

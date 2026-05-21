@@ -12,6 +12,10 @@ export default function Measurements({ user, onBack }) {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showZones, setShowZones] = useState(false)
+  // Groupes dépliés dans la zone de saisie (collapsés par défaut)
+  const [openInputGroups, setOpenInputGroups] = useState({ tronc: false, membres: false })
+  // Sessions dépliées dans l'historique (collapsées par défaut, sauf la plus récente)
+  const [openHistDates, setOpenHistDates] = useState({})
 
   useEffect(() => {
     if (!showZones) {
@@ -165,16 +169,27 @@ export default function Measurements({ user, onBack }) {
             <>
               <p style={styles.hint}>{t(user, 'meas_input_hint')}</p>
 
-              {/* Inputs groupés par type */}
+              {/* Inputs groupés par type — menus dépliables */}
               {['tronc', 'membres'].map(type => {
                 const groupZones = zones.filter(z => z.zone_type === type)
                 if (groupZones.length === 0) return null
+                const isOpen = !!openInputGroups[type]
+                const filledCount = groupZones.filter(z => inputs[z.id] && inputs[z.id] !== '').length
                 return (
                   <div key={type} style={styles.zoneGroup}>
-                    <p style={styles.zoneGroupTitle}>
-                      {t(user, type === 'tronc' ? 'zones_type_tronc' : 'zones_type_membres')}
-                    </p>
-                    {groupZones.map(z => (
+                    <button
+                      style={styles.zoneGroupHeader}
+                      onClick={() => setOpenInputGroups(prev => ({ ...prev, [type]: !prev[type] }))}
+                    >
+                      <span style={styles.zoneGroupTitle}>
+                        {t(user, type === 'tronc' ? 'zones_type_tronc' : 'zones_type_membres')}
+                        <span style={styles.zoneGroupCount}>
+                          {filledCount > 0 ? ` · ${filledCount}/${groupZones.length}` : ` · ${groupZones.length}`}
+                        </span>
+                      </span>
+                      <span style={styles.chevron}>{isOpen ? '▾' : '▸'}</span>
+                    </button>
+                    {isOpen && groupZones.map(z => (
                       <div key={z.id} style={styles.zoneInputRow}>
                         <label style={styles.zoneInputLabel}>{z.name}</label>
                         <input
@@ -247,28 +262,42 @@ export default function Measurements({ user, onBack }) {
           </div>
         )}
 
-        {/* Historique */}
+        {/* Historique — menus dépliables (1ère ligne ouverte par défaut) */}
         {sessions.length > 0 ? (
           <div style={styles.histCard}>
             <p style={styles.cardTitle}>{t(user, 'meas_history')}</p>
-            {sessions.map(s => (
-              <div key={s.date} style={styles.histSession}>
-                <p style={styles.histDate}>
-                  {t(user, 'meas_session_of')} {new Date(s.date + 'T12:00:00').toLocaleDateString(locale(user), { weekday: 'short', day: 'numeric', month: 'short' })}
-                </p>
-                <div style={styles.histEntries}>
-                  {s.entries.map((e, i) => (
-                    <span key={i} style={{
-                      ...styles.histChip,
-                      background: e.type === 'tronc' ? 'rgba(232,113,90,0.12)' : 'var(--green-pale)',
-                      color: e.type === 'tronc' ? '#E8715A' : 'var(--green)',
-                    }}>
-                      {e.name} · {e.value} cm
+            {sessions.map((s, idx) => {
+              // 1ère session (la plus récente) ouverte par défaut, sauf si l'utilisateur a explicitement choisi
+              const explicit = s.date in openHistDates
+              const isOpen = explicit ? openHistDates[s.date] : idx === 0
+              return (
+                <div key={s.date} style={styles.histSession}>
+                  <button
+                    style={styles.histSessionHeader}
+                    onClick={() => setOpenHistDates(prev => ({ ...prev, [s.date]: !isOpen }))}
+                  >
+                    <span style={styles.histDate}>
+                      {t(user, 'meas_session_of')} {new Date(s.date + 'T12:00:00').toLocaleDateString(locale(user), { weekday: 'short', day: 'numeric', month: 'short' })}
+                      <span style={styles.histDateCount}> · {s.entries.length}</span>
                     </span>
-                  ))}
+                    <span style={styles.chevron}>{isOpen ? '▾' : '▸'}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={styles.histEntries}>
+                      {s.entries.map((e, i) => (
+                        <span key={i} style={{
+                          ...styles.histChip,
+                          background: e.type === 'tronc' ? 'rgba(232,113,90,0.12)' : 'var(--green-pale)',
+                          color: e.type === 'tronc' ? '#E8715A' : 'var(--green)',
+                        }}>
+                          {e.name} · {e.value} cm
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : zones.length > 0 && (
           <div style={styles.emptyHist}>
@@ -314,11 +343,20 @@ const styles = {
     background: 'var(--green)', color: 'white', fontWeight: '700', fontSize: '14px',
   },
 
-  zoneGroup: { marginBottom: '12px' },
-  zoneGroupTitle: {
-    fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)',
-    textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px',
+  zoneGroup: { marginBottom: '10px' },
+  zoneGroupHeader: {
+    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    background: 'var(--cream)', borderRadius: '12px',
+    padding: '10px 14px', marginBottom: '6px',
+    border: 'none', cursor: 'pointer',
   },
+  zoneGroupTitle: {
+    fontSize: '12px', fontWeight: '700', color: 'var(--green)',
+    textTransform: 'uppercase', letterSpacing: '0.5px',
+    display: 'flex', alignItems: 'center', gap: '4px',
+  },
+  zoneGroupCount: { color: 'var(--text-muted)', fontSize: '11px', fontWeight: '600', textTransform: 'none', letterSpacing: 0 },
+  chevron: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: '700' },
   zoneInputRow: {
     display: 'flex', alignItems: 'center', gap: '8px',
     padding: '6px 0',
@@ -352,9 +390,15 @@ const styles = {
   chartHint: { fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' },
 
   histCard: { background: 'var(--white)', borderRadius: '20px', padding: '20px', boxShadow: 'var(--shadow)' },
-  histSession: { padding: '12px 0', borderBottom: '1px solid var(--border)' },
-  histDate: { fontSize: '13px', color: 'var(--text-muted)', textTransform: 'capitalize', marginBottom: '8px' },
-  histEntries: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
+  histSession: { padding: '8px 0', borderBottom: '1px solid var(--border)' },
+  histSessionHeader: {
+    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    background: 'none', border: 'none', cursor: 'pointer',
+    padding: '6px 0', textAlign: 'left',
+  },
+  histDate: { fontSize: '13px', color: 'var(--text)', textTransform: 'capitalize', fontWeight: '600' },
+  histDateCount: { color: 'var(--text-muted)', fontWeight: '500' },
+  histEntries: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' },
   histChip: {
     fontSize: '12px', padding: '4px 10px', borderRadius: '12px',
     fontWeight: '600',
